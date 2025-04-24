@@ -165,17 +165,7 @@ def _get_tidal_recommendations(track_ids: list = None, limit_seed_tracks: int = 
     Returns:
         A dictionary containing recommended tracks based on seed tracks and filtering criteria.
     """
-    try:
-        # First, check if the user is authenticated
-        auth_check = requests.get(f"{FLASK_APP_URL}/api/auth/status")
-        auth_data = auth_check.json()
-        
-        if not auth_data.get("authenticated", False):
-            return {
-                "status": "error",
-                "message": "You need to login to TIDAL first. Please use the tidal_login() function."
-            }
-        
+    try:        
         # If track_ids not provided, get them from user favorites
         if not track_ids:
             # Retrieve favorite tracks to use as seeds
@@ -233,7 +223,7 @@ def _get_tidal_recommendations(track_ids: list = None, limit_seed_tracks: int = 
         }
     
 @mcp.tool()
-def recommend_tracks(filter_criteria: Optional[str] = None, seed_count: int = 10, limit_per_track: int = 10, max_recommendations: int = 30) -> dict:
+def recommend_tracks(filter_criteria: Optional[str] = None, seed_count: int = 10, limit_per_track: int = 10) -> dict:
     """
     Recommends music tracks based on the user's TIDAL listening history.
     
@@ -268,8 +258,7 @@ def recommend_tracks(filter_criteria: Optional[str] = None, seed_count: int = 10
         filter_criteria: Specific preferences for filtering recommendations (e.g., "relaxing music," 
                          "recent releases," "upbeat," "jazz influences")
         seed_count: Number of tracks from user's history to use as seeds
-        limit_per_track: Maximum number of recommendations to get per track
-        max_recommendations: Maximum number of tracks to recommend
+        limit_per_track: Maximum number of recommendations to get per track        
         
     Returns:
         A dictionary containing both the user's favorite tracks and recommended tracks
@@ -331,7 +320,249 @@ def recommend_tracks(filter_criteria: Optional[str] = None, seed_count: int = 10
     return {
         "status": "success",
         "favorite_tracks": favorite_tracks,
-        "recommendations": recommendations[:max_recommendations],  # Limit to max_recommendations
+        "recommendations": recommendations,
         "filter_criteria": filter_criteria,
         "favorite_count": len(favorite_tracks),        
     }
+
+
+@mcp.tool()
+def create_tidal_playlist(title: str, track_ids: list, description: str = "") -> dict:
+    """
+    Creates a new TIDAL playlist with the specified tracks.
+    
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "Create a playlist with these songs"
+    - "Make a TIDAL playlist"
+    - "Save these tracks to a playlist"
+    - "Create a collection of songs"
+    - Any request to create a new playlist in their TIDAL account
+    
+    This function creates a new playlist in the user's TIDAL account and adds the specified tracks to it.
+    The user must be authenticated with TIDAL first.
+    
+    When processing the results of this tool:
+    1. Confirm the playlist was created successfully
+    2. Provide the playlist title, number of tracks added, and URL
+    3. Always include the direct TIDAL URL (https://tidal.com/playlist/{playlist_id})
+    4. Suggest that the user can now access this playlist in their TIDAL account
+    
+    Args:
+        title: The name of the playlist to create
+        track_ids: List of TIDAL track IDs to add to the playlist
+        description: Optional description for the playlist (default: "")
+        
+    Returns:
+        A dictionary containing the status of the playlist creation and details about the created playlist
+    """
+    try:
+        # First, check if the user is authenticated
+        auth_check = requests.get(f"{FLASK_APP_URL}/api/auth/status")
+        auth_data = auth_check.json()
+        
+        if not auth_data.get("authenticated", False):
+            return {
+                "status": "error",
+                "message": "You need to login to TIDAL first before creating a playlist. Please use the tidal_login() function."
+            }
+        
+        # Validate inputs
+        if not title:
+            return {
+                "status": "error",
+                "message": "Playlist title cannot be empty."
+            }
+            
+        if not track_ids or not isinstance(track_ids, list) or len(track_ids) == 0:
+            return {
+                "status": "error",
+                "message": "You must provide at least one track ID to add to the playlist."
+            }
+        
+        # Create the playlist through the Flask API
+        payload = {
+            "title": title,
+            "description": description,
+            "track_ids": track_ids
+        }
+        
+        response = requests.post(f"{FLASK_APP_URL}/api/playlists", json=payload)
+        
+        # Check response
+        if response.status_code != 200:
+            error_data = response.json()
+            return {
+                "status": "error",
+                "message": f"Failed to create playlist: {error_data.get('error', 'Unknown error')}"
+            }
+            
+        # Parse the response
+        result = response.json()
+        playlist_data = result.get("playlist", {})
+        
+        # Get the playlist ID
+        playlist_id = playlist_data.get("id")
+        
+        # Format the TIDAL URL
+        playlist_url = f"https://tidal.com/playlist/{playlist_id}" if playlist_id else None        
+        playlist_data["playlist_url"] = playlist_url
+        
+        return {
+            "status": "success",
+            "message": f"Successfully created playlist '{title}' with {len(track_ids)} tracks",
+            "playlist": playlist_data            
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to create playlist: {str(e)}"
+        }
+    
+
+@mcp.tool()
+def get_user_playlists() -> dict:
+    """
+    Fetches the user's playlists from their TIDAL account.
+    
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "Show me my playlists"
+    - "List my TIDAL playlists"
+    - "What playlists do I have?"
+    - "Get my music collections"
+    - Any request to view or list their TIDAL playlists
+    
+    This function retrieves the user's playlists from TIDAL and returns them sorted
+    by last updated date (most recent first).
+    
+    When processing the results of this tool:
+    1. Present the playlists in a clear, organized format
+    2. Include key information like title, track count, and the TIDAL URL for each playlist
+    3. Mention when each playlist was last updated if available
+    4. If the user has many playlists, focus on the most recently updated ones unless specified otherwise
+    
+    Returns:
+        A dictionary containing the user's playlists sorted by last updated date
+    """
+    # First, check if the user is authenticated
+    auth_check = requests.get(f"{FLASK_APP_URL}/api/auth/status")
+    auth_data = auth_check.json()
+    
+    if not auth_data.get("authenticated", False):
+        return {
+            "status": "error",
+            "message": "You need to login to TIDAL first before I can fetch your playlists. Please use the tidal_login() function."
+        }
+    
+    try:
+        # Call the Flask endpoint to retrieve playlists with the specified limit
+        response = requests.get(f"{FLASK_APP_URL}/api/playlists")
+        
+        # Check if the request was successful
+        if response.status_code == 200:
+            return {
+                "status": "success",
+                "playlists": response.json().get("playlists", []),
+                "playlist_count": len(response.json().get("playlists", []))
+            }
+        elif response.status_code == 401:
+            return {
+                "status": "error",
+                "message": "Not authenticated with TIDAL. Please login first using tidal_login()."
+            }
+        else:
+            error_data = response.json()
+            return {
+                "status": "error",
+                "message": f"Failed to retrieve playlists: {error_data.get('error', 'Unknown error')}"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to connect to TIDAL playlists service: {str(e)}"
+        }
+    
+
+@mcp.tool()
+def get_playlist_tracks(playlist_id: str, limit: int = 100) -> dict:
+    """
+    Retrieves all tracks from a specified TIDAL playlist.
+    
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "Show me the songs in my playlist"
+    - "What tracks are in my [playlist name] playlist?"
+    - "List the songs from my playlist"
+    - "Get tracks from my playlist"
+    - "View contents of my TIDAL playlist"
+    - Any request to see what songs/tracks are in a specific playlist
+    
+    This function retrieves all tracks from a specific playlist in the user's TIDAL account.
+    The playlist_id must be provided, which can be obtained from the get_user_playlists() function.
+    
+    When processing the results of this tool:
+    1. Present the playlist information (title, description, track count) as context
+    2. List the tracks in a clear, organized format with track name, artist, and album
+    3. Include track durations where available
+    4. Mention the total number of tracks in the playlist
+    5. If there are many tracks, focus on highlighting interesting patterns or variety
+    
+    Args:
+        playlist_id: The TIDAL ID of the playlist to retrieve (required)
+        limit: Maximum number of tracks to retrieve (default: 100)
+        
+    Returns:
+        A dictionary containing the playlist information and all tracks in the playlist
+    """
+    # First, check if the user is authenticated
+    auth_check = requests.get(f"{FLASK_APP_URL}/api/auth/status")
+    auth_data = auth_check.json()
+    
+    if not auth_data.get("authenticated", False):
+        return {
+            "status": "error",
+            "message": "You need to login to TIDAL first before I can fetch playlist tracks. Please use the tidal_login() function."
+        }
+    
+    # Validate playlist_id
+    if not playlist_id:
+        return {
+            "status": "error", 
+            "message": "A playlist ID is required. You can get playlist IDs by using the get_user_playlists() function."
+        }
+    
+    try:
+        # Call the Flask endpoint to retrieve tracks from the playlist
+        response = requests.get(
+            f"{FLASK_APP_URL}/api/playlists/{playlist_id}/tracks", 
+            params={"limit": limit}
+        )
+        
+        # Check if the request was successful
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "status": "success",                
+                "tracks": data.get("tracks", []),
+                "track_count": data.get("total_tracks", 0)
+            }
+        elif response.status_code == 404:
+            return {
+                "status": "error",
+                "message": f"Playlist with ID {playlist_id} not found. Please check the playlist ID and try again."
+            }
+        elif response.status_code == 401:
+            return {
+                "status": "error",
+                "message": "Not authenticated with TIDAL. Please login first using tidal_login()."
+            }
+        else:
+            error_data = response.json()
+            return {
+                "status": "error",
+                "message": f"Failed to retrieve playlist tracks: {error_data.get('error', 'Unknown error')}"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to connect to TIDAL playlist service: {str(e)}"
+        }

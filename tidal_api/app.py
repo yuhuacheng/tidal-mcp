@@ -116,8 +116,9 @@ def get_tracks(session: BrowserSession):
     """
     Get tracks from the user's history.
     """
-    try:
-        # Get user favorites or history
+    try:        
+        # TODO: Add streaminig history support if TIDAL API allows it
+        # Get user favorites or history (for now limiting to user favorites only)
         favorites = session.user.favorites
         
         # Get limit from query parameter, default to 10 if not specified
@@ -224,6 +225,138 @@ def get_batch_recommendations(session: BrowserSession):
     except Exception as e:
         return jsonify({"error": f"Error fetching batch recommendations: {str(e)}"}), 500
 
+
+@app.route('/api/playlists', methods=['POST'])
+@requires_tidal_auth
+def create_playlist(session: BrowserSession):
+    """
+    Creates a new TIDAL playlist and adds tracks to it.
+    
+    Expected JSON payload:
+    {
+        "title": "Playlist title",
+        "description": "Playlist description",
+        "track_ids": [123456789, 987654321, ...]
+    }
+    
+    Returns the created playlist information.
+    """
+    try:
+        # Get request data
+        request_data = request.get_json()
+        if not request_data:
+            return jsonify({"error": "Missing request body"}), 400
+            
+        # Validate required fields
+        if 'title' not in request_data:
+            return jsonify({"error": "Missing 'title' in request body"}), 400
+            
+        if 'track_ids' not in request_data or not request_data['track_ids']:
+            return jsonify({"error": "Missing 'track_ids' in request body or empty track list"}), 400
+            
+        # Get parameters from request
+        title = request_data['title']
+        description = request_data.get('description', '')  # Optional
+        track_ids = request_data['track_ids']
+        
+        # Validate track_ids is a list
+        if not isinstance(track_ids, list):
+            return jsonify({"error": "'track_ids' must be a list"}), 400
+        
+        # Create the playlist
+        playlist = session.user.create_playlist(title, description)
+        
+        # Add tracks to the playlist
+        playlist.add(track_ids)
+        
+        # Return playlist information
+        playlist_info = {
+            "id": playlist.id,
+            "title": playlist.name,
+            "description": playlist.description,
+            "created": playlist.created,
+            "last_updated": playlist.last_updated,
+            "track_count": playlist.num_tracks,
+            "duration": playlist.duration,
+        }
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Playlist '{title}' created successfully with {len(track_ids)} tracks",
+            "playlist": playlist_info
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Error creating playlist: {str(e)}"}), 500
+
+
+@app.route('/api/playlists', methods=['GET'])
+@requires_tidal_auth
+def get_user_playlists(session: BrowserSession):
+    """
+    Get the user's playlists from TIDAL.
+    """
+    try:        
+        # Get user playlists
+        playlists = session.user.playlists()
+        
+        # Format playlist data
+        playlist_list = []
+        for playlist in playlists:
+            playlist_info = {
+                "id": playlist.id,
+                "title": playlist.name,
+                "description": playlist.description if hasattr(playlist, 'description') else "",
+                "created": playlist.created if hasattr(playlist, 'created') else None,
+                "last_updated": playlist.last_updated if hasattr(playlist, 'last_updated') else None,
+                "track_count": playlist.num_tracks if hasattr(playlist, 'num_tracks') else 0,
+                "duration": playlist.duration if hasattr(playlist, 'duration') else 0,
+                "url": f"https://tidal.com/playlist/{playlist.id}"
+            }
+            playlist_list.append(playlist_info)
+        
+        # Sort playlists by last_updated in descending order
+        sorted_playlists = sorted(
+            playlist_list, 
+            key=lambda x: x.get('last_updated', ''), 
+            reverse=True
+        )
+
+        return jsonify({"playlists": sorted_playlists})
+    except Exception as e:
+        return jsonify({"error": f"Error fetching playlists: {str(e)}"}), 500
+    
+
+@app.route('/api/playlists/<playlist_id>/tracks', methods=['GET'])
+@requires_tidal_auth
+def get_playlist_tracks(playlist_id: str, session: BrowserSession):
+    """
+    Get tracks from a specific TIDAL playlist.
+    """
+    try:
+        # Get limit from query parameter, default to 100 if not specified
+        limit = bound_limit(request.args.get('limit', default=100, type=int))
+        
+        # Get the playlist object
+        playlist = session.playlist(playlist_id)
+        if not playlist:
+            return jsonify({"error": f"Playlist with ID {playlist_id} not found"}), 404
+            
+        # Get tracks from the playlist with pagination if needed
+        tracks = playlist.items(limit=limit)
+        
+        # Format track data
+        track_list = [format_track_data(track) for track in tracks]
+        
+        return jsonify({
+            "playlist_id": playlist.id,
+            "tracks": track_list,
+            "total_tracks": len(track_list)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Error fetching playlist tracks: {str(e)}"}), 500
+    
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
