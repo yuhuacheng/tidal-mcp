@@ -242,15 +242,17 @@ def recommend_tracks(track_ids: Optional[List[str]] = None, filter_criteria: Opt
     When processing the results of this tool:
     1. Analyze the seed tracks to understand the music taste or direction
     2. Review the recommended tracks from TIDAL
-    3. Select and rank the most appropriate tracks based on the seed tracks and filter criteria
-    4. Group recommendations by similar styles, artists, or moods with descriptive headings
-    5. For each recommended track, provide:
+    3. IMPORTANT: Do NOT include any tracks from the seed tracks in your recommendations
+    4. Ensure there are NO DUPLICATES in your recommended tracks list
+    5. Select and rank the most appropriate tracks based on the seed tracks and filter criteria
+    6. Group recommendations by similar styles, artists, or moods with descriptive headings
+    7. For each recommended track, provide:
        - The track name, artist, album
        - Always include the track's URL to make it easy for users to listen to the track
        - A brief explanation of why this track might appeal to the user based on the seed tracks
        - If applicable, how this track matches their specific filter criteria       
-    6. Format your response as a nicely presented list of recommendations with helpful context (remember to include the track's URL!)
-    7. Begin with a brief introduction explaining your selection strategy
+    8. Format your response as a nicely presented list of recommendations with helpful context (remember to include the track's URL!)
+    9. Begin with a brief introduction explaining your selection strategy
     
     [IMPORTANT NOTE] If you're not familiar with any artists or tracks mentioned, you should use internet search capabilities if available to provide more accurate information.
     
