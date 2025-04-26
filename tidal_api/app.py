@@ -358,5 +358,29 @@ def get_playlist_tracks(playlist_id: str, session: BrowserSession):
         return jsonify({"error": f"Error fetching playlist tracks: {str(e)}"}), 500
     
 
+@app.route('/api/playlists/<playlist_id>', methods=['DELETE'])
+@requires_tidal_auth
+def delete_playlist(playlist_id: str, session: BrowserSession):
+    """
+    Delete a TIDAL playlist by its ID.
+    """
+    try:
+        # Get the playlist object
+        playlist = session.playlist(playlist_id)
+        if not playlist:
+            return jsonify({"error": f"Playlist with ID {playlist_id} not found"}), 404
+            
+        # Delete the playlist
+        playlist.delete()
+        
+        return jsonify({
+            "status": "success",
+            "message": f"Playlist with ID {playlist_id} was successfully deleted"
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Error deleting playlist: {str(e)}"}), 500
+    
+    
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

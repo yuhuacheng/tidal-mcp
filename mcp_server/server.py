@@ -583,3 +583,75 @@ def get_playlist_tracks(playlist_id: str, limit: int = 100) -> dict:
             "status": "error",
             "message": f"Failed to connect to TIDAL playlist service: {str(e)}"
         }
+    
+
+@mcp.tool()
+def delete_tidal_playlist(playlist_id: str) -> dict:
+    """
+    Deletes a TIDAL playlist by its ID.
+    
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "Delete my playlist"
+    - "Remove a playlist from my TIDAL account"
+    - "Get rid of this playlist"
+    - "Delete the playlist with ID X"
+    - Any request to delete or remove a TIDAL playlist
+    
+    This function deletes a specific playlist from the user's TIDAL account.
+    The user must be authenticated with TIDAL first.
+    
+    When processing the results of this tool:
+    1. Confirm the playlist was deleted successfully
+    2. Provide a clear message about the deletion
+    
+    Args:
+        playlist_id: The TIDAL ID of the playlist to delete (required)
+        
+    Returns:
+        A dictionary containing the status of the playlist deletion
+    """
+    # First, check if the user is authenticated
+    auth_check = requests.get(f"{FLASK_APP_URL}/api/auth/status")
+    auth_data = auth_check.json()
+    
+    if not auth_data.get("authenticated", False):
+        return {
+            "status": "error",
+            "message": "You need to login to TIDAL first before deleting a playlist. Please use the tidal_login() function."
+        }
+    
+    # Validate playlist_id
+    if not playlist_id:
+        return {
+            "status": "error", 
+            "message": "A playlist ID is required. You can get playlist IDs by using the get_user_playlists() function."
+        }
+    
+    try:
+        # Call the Flask endpoint to delete the playlist
+        response = requests.delete(f"{FLASK_APP_URL}/api/playlists/{playlist_id}")
+        
+        # Check if the request was successful
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 404:
+            return {
+                "status": "error",
+                "message": f"Playlist with ID {playlist_id} not found. Please check the playlist ID and try again."
+            }
+        elif response.status_code == 401:
+            return {
+                "status": "error",
+                "message": "Not authenticated with TIDAL. Please login first using tidal_login()."
+            }
+        else:
+            error_data = response.json()
+            return {
+                "status": "error",
+                "message": f"Failed to delete playlist: {error_data.get('error', 'Unknown error')}"
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to connect to TIDAL playlist service: {str(e)}"
+        }
