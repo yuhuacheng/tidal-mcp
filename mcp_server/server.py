@@ -2,7 +2,7 @@ from mcp.server.fastmcp import FastMCP
 import requests
 import atexit
 
-from typing import Optional
+from typing import Optional, List
 
 from utils import start_flask_app, shutdown_flask_app, FLASK_APP_URL
 
@@ -44,20 +44,38 @@ def tidal_login() -> dict:
             "message": f"Failed to connect to TIDAL authentication service: {str(e)}"
         }
     
-def _get_tidal_tracks(limit: int = 10) -> dict:
+@mcp.tool()
+def get_favorite_tracks(limit: int = 10) -> dict:
     """
-    [INTERNAL USE] Retrieves tracks from the user's TIDAL account history or favorites.
-    This is a lower-level function primarily used by higher-level recommendation functions.
+    Retrieves tracks from the user's TIDAL account favorites.
+    
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "What are my favorite tracks?"
+    - "Show me my TIDAL favorites"
+    - "What music do I have saved?"
+    - "Get my favorite songs"
+    - Any request to view their saved/favorite tracks
+    
+    This function retrieves the user's favorite tracks from TIDAL.
     
     Args:
-        limit: Maximum number of tracks to retrieve (default: 10).
-               ONLY specify this parameter if the user explicitly requests 
-               a different number of tracks.    
+        limit: Maximum number of tracks to retrieve (default: 10, max: 50).
+    
     Returns:
         A dictionary containing track information including track ID, title, artist, album, and duration.
         Returns an error message if not authenticated or if retrieval fails.
     """
     try:
+        # First, check if the user is authenticated
+        auth_check = requests.get(f"{FLASK_APP_URL}/api/auth/status")
+        auth_data = auth_check.json()
+        
+        if not auth_data.get("authenticated", False):
+            return {
+                "status": "error",
+                "message": "You need to login to TIDAL first before I can fetch your favorite tracks. Please use the tidal_login() function."
+            }
+            
         # Call your Flask endpoint to retrieve tracks with the specified limit
         response = requests.get(f"{FLASK_APP_URL}/api/tracks", params={"limit": limit})
         
@@ -123,7 +141,7 @@ def summarize_music_preferences(limit: int = 10) -> dict:
         }
     
     # Retrieve the user's favorite tracks
-    tracks_response = _get_tidal_tracks(limit=limit)
+    tracks_response = get_favorite_tracks(limit=limit)
     
     # Check if we successfully retrieved tracks
     if "status" in tracks_response and tracks_response["status"] == "error":
@@ -148,16 +166,14 @@ def summarize_music_preferences(limit: int = 10) -> dict:
         "track_count": len(tracks)
     }    
 
-def _get_tidal_recommendations(track_ids: list = None, limit_seed_tracks: int = 10, limit_per_track: int = 10, filter_criteria: str = None) -> dict:
+def _get_tidal_recommendations(track_ids: list = None, limit_per_track: int = 10, filter_criteria: str = None) -> dict:
     """
     [INTERNAL USE] Gets raw recommendation data from TIDAL API.
     This is a lower-level function primarily used by higher-level recommendation functions.
     For end-user recommendations, use recommend_tracks instead.
     
     Args:
-        track_ids: List of TIDAL track IDs to use as seeds for recommendations. 
-                  If not provided, will use the user's favorite tracks.
-        limit_seed_tracks: Maximum number of seed tracks to use (default: 10)
+        track_ids: List of TIDAL track IDs to use as seeds for recommendations.
         limit_per_track: Maximum number of recommendations to get per track (default: 10)
         filter_criteria: Optional string describing criteria to filter recommendations
                          (e.g., "relaxing", "new releases", "upbeat")
@@ -166,26 +182,12 @@ def _get_tidal_recommendations(track_ids: list = None, limit_seed_tracks: int = 
         A dictionary containing recommended tracks based on seed tracks and filtering criteria.
     """
     try:        
-        # If track_ids not provided, get them from user favorites
-        if not track_ids:
-            # Retrieve favorite tracks to use as seeds
-            tracks_response = _get_tidal_tracks(limit=limit_seed_tracks)
-            
-            if "status" in tracks_response and tracks_response["status"] == "error":
-                return {
-                    "status": "error",
-                    "message": f"Unable to get recommendations: {tracks_response['message']}"
-                }
-            
-            # Extract track IDs from favorites
-            tracks = tracks_response.get("tracks", [])
-            if not tracks:
-                return {
-                    "status": "error",
-                    "message": "No favorite tracks found to use as seeds for recommendations."
-                }
-            
-            track_ids = [track["id"] for track in tracks]
+        # Validate track_ids
+        if not track_ids or not isinstance(track_ids, list) or len(track_ids) == 0:
+            return {
+                "status": "error",
+                "message": "No track IDs provided for recommendations."
+            }
                 
         # Call the batch recommendations endpoint
         payload = {
@@ -223,45 +225,44 @@ def _get_tidal_recommendations(track_ids: list = None, limit_seed_tracks: int = 
         }
     
 @mcp.tool()
-def recommend_tracks(filter_criteria: Optional[str] = None, seed_count: int = 10, limit_per_track: int = 10) -> dict:
+def recommend_tracks(track_ids: Optional[List[str]] = None, filter_criteria: Optional[str] = None, limit_per_track: int = 10) -> dict:
     """
-    Recommends music tracks based on the user's TIDAL listening history.
+    Recommends music tracks based on specified track IDs or can use the user's TIDAL favorites if no IDs are provided.
     
     USE THIS TOOL WHENEVER A USER ASKS FOR:
     - Music recommendations
     - Track suggestions
-    - Music similar to their TIDAL favorites
+    - Music similar to their TIDAL favorites or specific tracks
     - "What should I listen to?"
-    - Any request to recommend songs/tracks/music based on their TIDAL history
+    - Any request to recommend songs/tracks/music based on their TIDAL history or specific tracks
     
-    This function retrieves the user's favorite tracks from TIDAL, gets recommendations
-    based on these tracks, and returns a structured dataset that includes both the
-    user's favorites and the recommended tracks.
+    This function gets recommendations based on provided track IDs or retrieves the user's 
+    favorite tracks as seeds if no IDs are specified.
     
     When processing the results of this tool:
-    1. Analyze the user's favorite tracks to understand their music taste
+    1. Analyze the seed tracks to understand the music taste or direction
     2. Review the recommended tracks from TIDAL
-    3. Select and rank the most appropriate tracks based on the user's taste and filter criteria
-    4. Limit your selection to the max_recommendations value or less
-    5. Group recommendations by similar styles, artists, or moods with descriptive headings
-    6. For each recommended track, provide:
+    3. Select and rank the most appropriate tracks based on the seed tracks and filter criteria
+    4. Group recommendations by similar styles, artists, or moods with descriptive headings
+    5. For each recommended track, provide:
        - The track name, artist, album
        - Always include the track's URL to make it easy for users to listen to the track
-       - A brief explanation of why this track might appeal to the user based on their favorites
+       - A brief explanation of why this track might appeal to the user based on the seed tracks
        - If applicable, how this track matches their specific filter criteria       
-    7. Format your response as a nicely presented list of recommendations with helpful context (remember to include the track's URL!)
-    8. Begin with a brief introduction explaining your selection strategy
+    6. Format your response as a nicely presented list of recommendations with helpful context (remember to include the track's URL!)
+    7. Begin with a brief introduction explaining your selection strategy
     
     [IMPORTANT NOTE] If you're not familiar with any artists or tracks mentioned, you should use internet search capabilities if available to provide more accurate information.
     
     Args:
+        track_ids: Optional list of TIDAL track IDs to use as seeds for recommendations.
+                  If not provided, will use the user's favorite tracks.
         filter_criteria: Specific preferences for filtering recommendations (e.g., "relaxing music," 
                          "recent releases," "upbeat," "jazz influences")
-        seed_count: Number of tracks from user's history to use as seeds
         limit_per_track: Maximum number of recommendations to get per track        
         
     Returns:
-        A dictionary containing both the user's favorite tracks and recommended tracks
+        A dictionary containing both the seed tracks and recommended tracks
     """
     # First, check if the user is authenticated
     auth_check = requests.get(f"{FLASK_APP_URL}/api/auth/status")
@@ -273,29 +274,42 @@ def recommend_tracks(filter_criteria: Optional[str] = None, seed_count: int = 10
             "message": "You need to login to TIDAL first before I can recommend music. Please use the tidal_login() function."
         }
     
-    # Get the user's favorite tracks
-    tracks_response = _get_tidal_tracks(limit=seed_count)
+    # Initialize variables to store our seed tracks and their info
+    seed_track_ids = []
+    seed_tracks_info = []
     
-    # Check if we successfully retrieved tracks
-    if "status" in tracks_response and tracks_response["status"] == "error":
-        return {
-            "status": "error",
-            "message": f"Unable to analyze your music preferences: {tracks_response['message']}"
-        }
+    # If track_ids are provided, use them directly
+    if track_ids and isinstance(track_ids, list) and len(track_ids) > 0:
+        seed_track_ids = track_ids
+        # Note: We don't have detailed info about these tracks, just IDs
+        # This is fine as the recommendation API only needs IDs
+    else:
+        # If no track_ids provided, get the user's favorite tracks
+        tracks_response = get_favorite_tracks(limit=10)  # Default to 10 favorite tracks
+        
+        # Check if we successfully retrieved tracks
+        if "status" in tracks_response and tracks_response["status"] == "error":
+            return {
+                "status": "error",
+                "message": f"Unable to get favorite tracks for recommendations: {tracks_response['message']}"
+            }
+        
+        # Extract the track data
+        favorite_tracks = tracks_response.get("tracks", [])
+        
+        if not favorite_tracks:
+            return {
+                "status": "error",
+                "message": "I couldn't find any favorite tracks in your TIDAL account to use as seeds for recommendations."
+            }
+        
+        # Use these as our seed tracks
+        seed_track_ids = [track["id"] for track in favorite_tracks]
+        seed_tracks_info = favorite_tracks
     
-    # Extract the track data
-    favorite_tracks = tracks_response.get("tracks", [])
-    
-    if not favorite_tracks:
-        return {
-            "status": "error",
-            "message": "I couldn't find any favorite tracks in your TIDAL account. Please make sure you have saved some tracks as favorites."
-        }
-    
-    # Get recommendations based on these favorite tracks
-    favorite_track_ids = [track["id"] for track in favorite_tracks]
+    # Get recommendations based on the seed tracks
     recommendations_response = _get_tidal_recommendations(
-        track_ids=favorite_track_ids,
+        track_ids=seed_track_ids,
         limit_per_track=limit_per_track,
         filter_criteria=filter_criteria
     )
@@ -313,16 +327,17 @@ def recommend_tracks(filter_criteria: Optional[str] = None, seed_count: int = 10
     if not recommendations:
         return {
             "status": "error",
-            "message": "I couldn't find any recommendations based on your favorites. Please try again later or adjust your filtering criteria."
+            "message": "I couldn't find any recommendations based on the provided tracks. Please try again with different tracks or adjust your filtering criteria."
         }
     
     # Return the structured data for Claude to process
     return {
         "status": "success",
-        "favorite_tracks": favorite_tracks,
+        "seed_tracks": seed_tracks_info,  # This might be empty if direct track_ids were provided
+        "seed_track_ids": seed_track_ids,
         "recommendations": recommendations,
         "filter_criteria": filter_criteria,
-        "favorite_count": len(favorite_tracks),        
+        "seed_count": len(seed_track_ids),
     }
 
 
