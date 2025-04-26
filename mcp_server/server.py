@@ -357,6 +357,18 @@ def create_tidal_playlist(title: str, track_ids: list, description: str = "") ->
     
     This function creates a new playlist in the user's TIDAL account and adds the specified tracks to it.
     The user must be authenticated with TIDAL first.
+
+    NAMING CONVENTION GUIDANCE:
+    When suggesting or creating a playlist, first check the user's existing playlists using get_user_playlists()
+    to understand their naming preferences. Some patterns to look for:
+    - Do they use emoji in playlist names?
+    - Do they use all caps, title case, or lowercase?
+    - Do they include dates or seasons in names?
+    - Do they name by mood, genre, activity, or artist?
+    - Do they use specific prefixes or formatting (e.g., "Mix: Summer Vibes" or "[Workout] High Energy")
+    
+    Try to match their style when suggesting new playlist names. If they have no playlists yet or you 
+    can't determine a pattern, use a clear, descriptive name based on the tracks' common themes.
     
     When processing the results of this tool:
     1. Confirm the playlist was created successfully
