@@ -7,7 +7,7 @@ from typing import Optional, List
 from utils import start_flask_app, shutdown_flask_app, FLASK_APP_URL
 
 # Create an MCP server
-mcp = FastMCP("TIDAL Integration")
+mcp = FastMCP("TIDAL MCP")
 
 # Start the Flask app when this script is loaded
 print("MCP server module is being loaded. Starting Flask app...")
@@ -45,7 +45,7 @@ def tidal_login() -> dict:
         }
     
 @mcp.tool()
-def get_favorite_tracks(limit: int = 10) -> dict:
+def get_favorite_tracks(limit: int = 20) -> dict:
     """
     Retrieves tracks from the user's TIDAL account favorites.
     
@@ -59,7 +59,7 @@ def get_favorite_tracks(limit: int = 10) -> dict:
     This function retrieves the user's favorite tracks from TIDAL.
     
     Args:
-        limit: Maximum number of tracks to retrieve (default: 10, max: 50).
+        limit: Maximum number of tracks to retrieve (default: 20, note it should be large enough by default unless specified otherwise).
     
     Returns:
         A dictionary containing track information including track ID, title, artist, album, and duration.
@@ -100,7 +100,7 @@ def get_favorite_tracks(limit: int = 10) -> dict:
         }
     
 @mcp.tool()
-def summarize_music_preferences(limit: int = 10) -> dict:
+def summarize_music_preferences(limit: int = 20) -> dict:
     """
     Analyzes the user's recent favorite tracks from TIDAL and provides a summary of their music preferences.
     
@@ -125,7 +125,7 @@ def summarize_music_preferences(limit: int = 10) -> dict:
     6. If you're not familiar with any artists, note this and use your general knowledge
     
     Args:
-        limit: Number of recent favorite tracks to analyze (default: 10, max: 50)
+        limit: Number of recent favorite tracks to analyze (default: 20)
         
     Returns:
         A dictionary containing the summary of music preferences and track data
@@ -166,7 +166,7 @@ def summarize_music_preferences(limit: int = 10) -> dict:
         "track_count": len(tracks)
     }    
 
-def _get_tidal_recommendations(track_ids: list = None, limit_per_track: int = 10, filter_criteria: str = None) -> dict:
+def _get_tidal_recommendations(track_ids: list = None, limit_per_track: int = 20, filter_criteria: str = None) -> dict:
     """
     [INTERNAL USE] Gets raw recommendation data from TIDAL API.
     This is a lower-level function primarily used by higher-level recommendation functions.
@@ -174,7 +174,7 @@ def _get_tidal_recommendations(track_ids: list = None, limit_per_track: int = 10
     
     Args:
         track_ids: List of TIDAL track IDs to use as seeds for recommendations.
-        limit_per_track: Maximum number of recommendations to get per track (default: 10)
+        limit_per_track: Maximum number of recommendations to get per track (default: 20)
         filter_criteria: Optional string describing criteria to filter recommendations
                          (e.g., "relaxing", "new releases", "upbeat")
     
@@ -225,7 +225,7 @@ def _get_tidal_recommendations(track_ids: list = None, limit_per_track: int = 10
         }
     
 @mcp.tool()
-def recommend_tracks(track_ids: Optional[List[str]] = None, filter_criteria: Optional[str] = None, limit_per_track: int = 10) -> dict:
+def recommend_tracks(track_ids: Optional[List[str]] = None, filter_criteria: Optional[str] = None, limit_per_track: int = 20, limit_from_favorite: int = 20) -> dict:
     """
     Recommends music tracks based on specified track IDs or can use the user's TIDAL favorites if no IDs are provided.
     
@@ -253,6 +253,7 @@ def recommend_tracks(track_ids: Optional[List[str]] = None, filter_criteria: Opt
        - If applicable, how this track matches their specific filter criteria       
     8. Format your response as a nicely presented list of recommendations with helpful context (remember to include the track's URL!)
     9. Begin with a brief introduction explaining your selection strategy
+    10. Lastly, unless specified otherwise, you should recommend MINIMUM 20 tracks (or more if possible) to give the user a good variety to choose from.
     
     [IMPORTANT NOTE] If you're not familiar with any artists or tracks mentioned, you should use internet search capabilities if available to provide more accurate information.
     
@@ -261,7 +262,8 @@ def recommend_tracks(track_ids: Optional[List[str]] = None, filter_criteria: Opt
                   If not provided, will use the user's favorite tracks.
         filter_criteria: Specific preferences for filtering recommendations (e.g., "relaxing music," 
                          "recent releases," "upbeat," "jazz influences")
-        limit_per_track: Maximum number of recommendations to get per track        
+        limit_per_track: Maximum number of recommendations to get per track (NOTE: default: 20, unless specified otherwise, we'd like to keep the default large enough to have enough candidates to work with)
+        limit_from_favorite: Maximum number of favorite tracks to use as seeds (NOTE: default: 20, unless specified otherwise, we'd like to keep the default large enough to have enough candidates to work with)
         
     Returns:
         A dictionary containing both the seed tracks and recommended tracks
@@ -287,7 +289,7 @@ def recommend_tracks(track_ids: Optional[List[str]] = None, filter_criteria: Opt
         # This is fine as the recommendation API only needs IDs
     else:
         # If no track_ids provided, get the user's favorite tracks
-        tracks_response = get_favorite_tracks(limit=10)  # Default to 10 favorite tracks
+        tracks_response = get_favorite_tracks(limit=limit_from_favorite)
         
         # Check if we successfully retrieved tracks
         if "status" in tracks_response and tracks_response["status"] == "error":
@@ -332,7 +334,7 @@ def recommend_tracks(track_ids: Optional[List[str]] = None, filter_criteria: Opt
             "message": "I couldn't find any recommendations based on the provided tracks. Please try again with different tracks or adjust your filtering criteria."
         }
     
-    # Return the structured data for Claude to process
+    # Return the structured data to process
     return {
         "status": "success",
         "seed_tracks": seed_tracks_info,  # This might be empty if direct track_ids were provided
