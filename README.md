@@ -1,12 +1,21 @@
-# TIDAL MCP
+# TIDAL MCP: My Custom Picks 🌟🎧
 
-A Model Context Protocol (MCP) server implementation that provides a bridge between AI assistants and your TIDAL music streaming account. This integration allows AI assistants to interact with your TIDAL account through a standardized interface, enabling functionalities such as browsing your favorite tracks, creating playlists, analyzing your music preferences, and providing personalized music recommendations.
+![Demo: Music Recommendations in Action](./assets/tidal_mcp_demo.gif)
+
+When exploring music on platforms like Spotify or TIDAL, there’s no shortage of recommendation features — Daily Discovery, New Arrivals, Top Artists, and more. But more often than not, I'd like something more direct and customizable. For example:
+
+> *"Based on my last 10 favorites, find similar tracks — but only ones from recent years."*
+
+> *"Find me tracks like those in this playlist, but slower and more acoustic."*
+
+Even with state-of-the-art recommendation systems, the results often feel too "aggregated" — not tuned to what I want **right now**.
+
+TIDAL MCP bridges that gap by giving an LLM access to your favorites, playlists, and TIDAL’s “track radio” API, letting it find similar tracks based on any seeds you pick. It then layers in additional filtering — using the LLM’s knowledge or external tools like web search — to match your specific vibe. Finally, it can create new playlists for you directly in your TIDAL account.
 
 ## Features
 
-- 🎵 **Music Recommendations**: Get personalized track recommendations based on your listening history
-- 📊 **Music Analysis**: Analyze your music taste and preferences
-- 📋 **Playlist Management**: Create, view, and manage your TIDAL playlists
+- 🌟 **Music Recommendations**: Get personalized track recommendations based on your listening history
+- ၊၊||၊ **Playlist Management**: Create, view, and manage your TIDAL playlists
 
 ## Quick Start
 
@@ -20,8 +29,8 @@ A Model Context Protocol (MCP) server implementation that provides a bridge betw
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/tidal-mcp-integration.git
-   cd tidal-mcp-integration
+   git clone https://github.com/yuhuacheng/tidal-mcp.git
+   cd tidal-mcp
    ```
 
 2. Create a virtual environment and install dependencies using uv:
@@ -67,8 +76,6 @@ To add this MCP server to Claude Desktop, you need to update the MCP configurati
 }
 ```
 
-Replace `/path/to/your/uv` with the actual path to your uv executable and `/path/to/your/project` with the actual path to your project directory.
-
 Example scrrenshot of the MCP configuration in Claude Desktop:
 ![Claude MCP Configuration](./assets/claude_desktop_config.png)
 
@@ -81,16 +88,17 @@ Example scrrenshot of the MCP configuration in Claude Desktop:
 5. Save the configuration
 6. Restart Claude Desktop
 
-## Usage Example Prompts
+## Suggested Prompt Starters
+Once configured, you can interact with your TIDAL account through a LLM by asking questions like:
 
-Once configured, you can interact with your TIDAL account through Claude by asking questions like:
+- *“Recommend songs like those in this playlist, but slower and more acoustic.”*
+- *“Create a playlist based on my top tracks, but focused on chill, late-night vibes.”*
+- *“Find songs like these in playlist XYZ but in languages other than English.”*
 
-- "Login to my TIDAL account"
-- "What are my favorite tracks on TIDAL?"
-- "Analyze my music preferences"
-- "Recommend new music based on my favorites"
-- "Create a playlist of relaxing jazz tracks"
-- "Show me my existing playlists"
+*💡 You can also ask the model to:*
+- Use more tracks as seeds to broaden the inspiration.
+- Return more recommendations if you want a longer playlist.
+- Or delete a playlist if you’re not into it — no pressure!
 
 ## Available Tools
 
