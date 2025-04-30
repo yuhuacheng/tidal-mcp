@@ -383,4 +383,10 @@ def delete_playlist(playlist_id: str, session: BrowserSession):
     
     
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    import os
+    
+    # Get port from environment variable or use default
+    port = int(os.environ.get("TIDAL_MCP_PORT", 5050))
+    
+    print(f"Starting Flask app on port {port}")
+    app.run(debug=True, port=port)

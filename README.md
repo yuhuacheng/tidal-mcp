@@ -46,17 +46,33 @@ TIDAL MCP bridges that gap by giving an LLM access to your favorites, playlists,
 
    This will install all dependencies defined in the pyproject.toml file and set up the project in development mode.
 
+#### Port Configuration
+
+By default, the flask app which exposes TIDAL API runs on port 5050. If this port is already in use on your system, you can change it by setting the `TIDAL_MCP_PORT` environment variable before running the application:
+
+```bash
+# On Unix/Linux/macOS
+export TIDAL_MCP_PORT=8080
+
+# On Windows (Command Prompt)
+set TIDAL_MCP_PORT=8080
+```   
+
 ## MCP Client Configuration
 
 ### Claude Desktop Configuration
 
 To add this MCP server to Claude Desktop, you need to update the MCP configuration file. Here's an example configuration:
+(you can specify the port by adding an optional `env` section with the `TIDAL_MCP_PORT` environment variable)
 
 ```json
 {
   "mcpServers": {
     "TIDAL Integration": {
       "command": "/path/to/your/uv",
+      "env": {
+        "TIDAL_MCP_PORT": "5100"
+      },
       "args": [
         "run",
         "--with",
