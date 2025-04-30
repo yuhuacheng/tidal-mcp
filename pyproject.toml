@@ -9,3 +9,10 @@ dependencies = [
     "requests>=2.32.3",
     "tidalapi>=0.8.3",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["mcp_server", "tidal_api"]
