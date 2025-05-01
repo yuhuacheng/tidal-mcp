@@ -2,6 +2,10 @@
 
 ![Demo: Music Recommendations in Action](./assets/tidal_mcp_demo.gif)
 
+<a href="https://glama.ai/mcp/servers/@yuhuacheng/tidal-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@yuhuacheng/tidal-mcp/badge" alt="TIDAL: My Custom Picks MCP server" />
+</a>
+
 When exploring music on platforms like Spotify or TIDAL, there’s no shortage of recommendation features — Daily Discovery, New Arrivals, Top Artists, and more. But more often than not, I'd like something more direct and customizable. For example:
 
 > *"Based on my last 10 favorites, find similar tracks — but only ones from recent years."*
