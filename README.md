@@ -6,6 +6,7 @@ Most music platforms offer recommendations — Daily Discovery, Top Artists, New
 
 With TIDAL MCP, you can ask for things like:
 > *"Based on my last 10 favorites, find similar tracks — but only ones from recent years."*
+>
 > *"Find me tracks like those in this playlist, but slower and more acoustic."*
 
 The LLM filters and curates results using your input, finds similar tracks via TIDAL’s API, and builds new playlists directly in your account.
