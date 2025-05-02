@@ -2,19 +2,17 @@
 
 ![Demo: Music Recommendations in Action](./assets/tidal_mcp_demo.gif)
 
-<a href="https://glama.ai/mcp/servers/@yuhuacheng/tidal-mcp">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/@yuhuacheng/tidal-mcp/badge" alt="TIDAL: My Custom Picks MCP server" />
-</a>
+Most music platforms offer recommendations — Daily Discovery, Top Artists, New Arrivals, etc. — but even with the state-of-the-art system, they often feel too "aggregated". I wanted something more custom and context-aware.
 
-When exploring music on platforms like Spotify or TIDAL, there’s no shortage of recommendation features — Daily Discovery, New Arrivals, Top Artists, and more. But more often than not, I'd like something more direct and customizable. For example:
-
+With TIDAL MCP, you can ask for things like:
 > *"Based on my last 10 favorites, find similar tracks — but only ones from recent years."*
-
 > *"Find me tracks like those in this playlist, but slower and more acoustic."*
 
-Even with state-of-the-art recommendation systems, the results often feel too "aggregated" and not tuned to what I want **right now**.
+The LLM filters and curates results using your input, finds similar tracks via TIDAL’s API, and builds new playlists directly in your account.
 
-TIDAL MCP bridges that gap by giving an LLM access to your favorites, playlists, and its **track radio** API, letting it find similar tracks based on any seeds you pick. It then layers in additional filtering — using the LLM’s knowledge or external tools like web search — to match your specific vibe. Finally, it can create new playlists for you directly in your TIDAL account.
+<a href="https://glama.ai/mcp/servers/@yuhuacheng/tidal-mcp">
+  <img width="400" height="200" src="https://glama.ai/mcp/servers/@yuhuacheng/tidal-mcp/badge" alt="TIDAL: My Custom Picks MCP server" />
+</a>
 
 ## Features
 
