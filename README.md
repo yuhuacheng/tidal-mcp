@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/yuhuacheng-tidal-mcp-badge.png)](https://mseep.ai/app/yuhuacheng-tidal-mcp)
+
 # TIDAL MCP: My Custom Picks 🌟🎧
 
 ![Demo: Music Recommendations in Action](./assets/tidal_mcp_demo.gif)
